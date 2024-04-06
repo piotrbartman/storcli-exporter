@@ -85,11 +85,5 @@ storcli_virtual_drive_status{controller="0",size="6.984 TB",slot="1/1",state="Op
 storcli_virtual_drive_status{controller="0",size="65.491 TB",slot="2/2",state="Dgrd",type="RAID5"} 1
 ```
 
-## Contributing
-Pull Requests are welcome and appreciated. For more major changes, create an issue in this repository to discuss the changes before creating a Pull Request.
-
 ## License
 Distributed under the MIT License. See LICENSE for more information.
-
-## Contact
-Konradas Bunikis - konradas.bunikis@zohomail.eu
