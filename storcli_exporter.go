@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os/exec"
+	"os"
 	"strconv"
 	"time"
 
@@ -43,6 +43,11 @@ type Response struct {
 				Type     string `json:"Type"`
 			} `json:"PD LIST"`
 			DriveGroups  int `json:"Drive Groups"`
+			HardwareConfig  struct {
+				Temperature       int `json:"ROC temperature(Degree Celsius)"`
+				CacheCade         int `json:"Current Size of CacheCade (GB)"`
+				FirmwareCache     int `json:"Current Size of FW Cache (MB)"`
+			} `json:"HwCfg"`
 			TOPOLOGYLIST []struct {
 				DiskGroup int         `json:"DG"`
 				Array     interface{} `json:"Arr"`
@@ -53,9 +58,6 @@ type Response struct {
 				Size      string      `json:"Size"`
 				Type      string      `json:"Type"`
 			} `json:"TOPOLOGY"`
-			HardwareConfig []struct {
-			  Temperature int `json:"ROC temperature(Degree Celsius)"`
-			} `json:"HwCfg"`
 		} `json:"Response Data"`
 	} `json:"Controllers"`
 }
@@ -70,13 +72,19 @@ type Exporter struct {
 	topologyStatus      *prometheus.Desc
 	scrapeSuccess       *prometheus.Desc
 	temperature         *prometheus.Desc
+	cacheCade           *prometheus.Desc
+	firmwareCache       *prometheus.Desc
 }
 
 func fetchStorcliOutput() (resp Response, err error) {
-	output, err := exec.Command(*argStorcliPath, "/call", "show", "all", "J").Output()
-	if err != nil {
-		return Response{}, fmt.Errorf("Failed to execute command: %s", err)
-	}
+// 	output, err := exec.Command(*argStorcliPath, "/call", "show", "all", "J").Output()
+// 	if err != nil {
+// 		return Response{}, fmt.Errorf("Failed to execute command: %s", err)
+// 	}
+  output, err := os.ReadFile("debug.json") // just pass the file name
+  if err != nil {
+      fmt.Print(err)
+  }
 	var response Response
 	err = json.Unmarshal(output, &response)
 	if err != nil {
@@ -96,6 +104,8 @@ func NewExporter() *Exporter {
 		driveGroupsCount:    DriveGroupsCount,
 		topologyStatus:      TopologyStatus,
 		temperature:         Temperature,
+		cacheCade:           CacheCade,
+		firmwareCache:       FirmwareCache,
 	}
 }
 
@@ -109,6 +119,8 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.topologyStatus
 	ch <- e.scrapeSuccess
 	ch <- e.temperature
+	ch <- e.cacheCade
+	ch <- e.firmwareCache
 }
 
 // Collect collects the Prometheus metrics
@@ -122,6 +134,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(e.virtualDriveCount, prometheus.GaugeValue, float64(controller.ResponseData.VirtualDrives), strconv.Itoa(controllerNumber))
 		ch <- prometheus.MustNewConstMetric(e.physicalDriveCount, prometheus.GaugeValue, float64(controller.ResponseData.PhysicalDrives), strconv.Itoa(controllerNumber))
 		ch <- prometheus.MustNewConstMetric(e.driveGroupsCount, prometheus.GaugeValue, float64(controller.ResponseData.DriveGroups), strconv.Itoa(controllerNumber))
+		ch <- prometheus.MustNewConstMetric(e.temperature, prometheus.GaugeValue, float64(controller.ResponseData.HardwareConfig.Temperature), strconv.Itoa(controllerNumber))
+		ch <- prometheus.MustNewConstMetric(e.cacheCade, prometheus.GaugeValue, float64(controller.ResponseData.HardwareConfig.CacheCade), strconv.Itoa(controllerNumber))
+		ch <- prometheus.MustNewConstMetric(e.firmwareCache, prometheus.GaugeValue, float64(controller.ResponseData.HardwareConfig.FirmwareCache), strconv.Itoa(controllerNumber))
 		for _, virtualDrive := range controller.ResponseData.VDLIST {
 			ch <- prometheus.MustNewConstMetric(
 				e.virtualDriveStatus, prometheus.GaugeValue, 1.0,
@@ -140,11 +155,6 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 				e.topologyStatus, prometheus.GaugeValue, 1.0,
 				strconv.Itoa(controllerNumber), topology.Position, strconv.Itoa(topology.DiskGroup), fmt.Sprint(topology.Array),
 				fmt.Sprint(topology.Row), fmt.Sprint(topology.Device), topology.State, topology.Type, topology.Size,
-			)
-		}
-		for _, hwcfg := range controller.ResponseData.HardwareConfig {
-			ch <- prometheus.MustNewConstMetric(
-				e.temperature, prometheus.GaugeValue, float64(hwcfg.Temperature), strconv.Itoa(controllerNumber),
 			)
 		}
 	}

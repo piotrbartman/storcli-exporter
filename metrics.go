@@ -67,7 +67,23 @@ var (
 	Temperature = prometheus.NewDesc(
 		prometheus.BuildFQName(*argMetricsPrefix, "", "temperature"),
 		"ROC temperature(Degree Celsius).",
+		[]string{"controller"},
 		nil,
+	)
+
+	// CacheCade returns new Prometheus metric description
+	CacheCade = prometheus.NewDesc(
+		prometheus.BuildFQName(*argMetricsPrefix, "", "cacheCade"),
+		"Current Size of CacheCade (GB).",
+		[]string{"controller"},
+		nil,
+	)
+
+	// FirmwareCache returns new Prometheus metric description
+	FirmwareCache = prometheus.NewDesc(
+		prometheus.BuildFQName(*argMetricsPrefix, "", "firmwareCache"),
+		"Current Size of FW Cache (MB).",
+		[]string{"controller"},
 		nil,
 	)
 )
