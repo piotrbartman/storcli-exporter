@@ -62,4 +62,12 @@ var (
 		},
 		nil,
 	)
+
+	// Temperature returns new Prometheus metric description
+	Temperature = prometheus.NewDesc(
+		prometheus.BuildFQName(*argMetricsPrefix, "", "temperature"),
+		"ROC temperature(Degree Celsius).",
+		nil,
+		nil,
+	)
 )

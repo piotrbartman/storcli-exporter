@@ -53,6 +53,9 @@ type Response struct {
 				Size      string      `json:"Size"`
 				Type      string      `json:"Type"`
 			} `json:"TOPOLOGY"`
+			HardwareConfig []struct {
+			  Temperature int `json:"ROC temperature(Degree Celsius)"`
+			} `json:"HwCfg"`
 		} `json:"Response Data"`
 	} `json:"Controllers"`
 }
@@ -66,6 +69,7 @@ type Exporter struct {
 	driveGroupsCount    *prometheus.Desc
 	topologyStatus      *prometheus.Desc
 	scrapeSuccess       *prometheus.Desc
+	temperature         *prometheus.Desc
 }
 
 func fetchStorcliOutput() (resp Response, err error) {
@@ -91,6 +95,7 @@ func NewExporter() *Exporter {
 		physicalDriveStatus: PhysicalDriveStatus,
 		driveGroupsCount:    DriveGroupsCount,
 		topologyStatus:      TopologyStatus,
+		temperature:         Temperature,
 	}
 }
 
@@ -103,6 +108,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.driveGroupsCount
 	ch <- e.topologyStatus
 	ch <- e.scrapeSuccess
+	ch <- e.temperature
 }
 
 // Collect collects the Prometheus metrics
@@ -134,6 +140,11 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 				e.topologyStatus, prometheus.GaugeValue, 1.0,
 				strconv.Itoa(controllerNumber), topology.Position, strconv.Itoa(topology.DiskGroup), fmt.Sprint(topology.Array),
 				fmt.Sprint(topology.Row), fmt.Sprint(topology.Device), topology.State, topology.Type, topology.Size,
+			)
+		}
+		for _, hwcfg := range controller.ResponseData.HardwareConfig {
+			ch <- prometheus.MustNewConstMetric(
+				e.temperature, prometheus.GaugeValue, float64(hwcfg.Temperature), strconv.Itoa(controllerNumber),
 			)
 		}
 	}
